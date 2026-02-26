@@ -2,7 +2,7 @@
 import numpy as np
 import gurobipy as gp
 import matplotlib.pyplot as plt
-from gurobipy import GRB
+from gurobipy import GRB, MVar
 
 #已知变量
 class staticValues :
@@ -68,7 +68,7 @@ class optimization_variable:
     self.delter_g_s =self.model.addMVar((self.k.n_gen,23),vtype=GRB.BINARY)
     self.pgsum = self.model.addMVar((1,24),vtype=GRB.CONTINUOUS)
   @staticmethod
-  def getConsEES(model, x_P_ch, x_P_dis, x_u_ch, x_u_dis, EESmax, EESmin, capmax, Horizon, theta):
+  def getConsEES(model, x_P_ch, x_P_dis, x_u_ch, x_u_dis, EESmax, EESmin, capmax, Horizon, theta)->MVar:
 
       # 常量定义
       soc0 = 0.5           # 初始SOC

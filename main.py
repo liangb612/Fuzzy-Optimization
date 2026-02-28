@@ -226,9 +226,7 @@ class optimization_variable:
     for t in range(24):
 
       gy_temp= gp.quicksum(self.g_s[n,t].item()*self.p_g[n,t].item() for n in range(5))
-      self.model.addConstr(self.gy[0,t] - gy_temp==0)
-      
-
+      self.model.addConstr(self.gy[0,t] - gy_temp==0)#type:ignore
     print(f"清晰化pwb{p_w_b}")
     print(f"清晰化pvb{p_v_b}")
     print(f"清晰化plb{p_l_b}")

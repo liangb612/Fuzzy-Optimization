@@ -1,5 +1,4 @@
-﻿# 导入 gurobipy 库
-import numpy as np
+﻿import numpy as np
 import gurobipy as gp
 import matplotlib.pyplot as plt
 from gurobipy import GRB, MVar
@@ -13,8 +12,6 @@ class staticValues :
   pw_f = np.array([188,237,188,181,204,156,174,186,118,89,77,54,52,80,82,107,144,185,163,221,215,240,223,190])
   pv_f =np.array([0,0,0,0,0,2.2000,5.5000,17.0000,28.6000,32.0000,39.0000,42.6000,42.0000,41.6000,40.5000,
     41.2000,36.5000,28.0000,16.0000 ,6.6000,1.1000,0,0,0])
-  #pload=np.array([945,845,745 ,780,998,1095,1147,1199,1300,1397,1449,1498,1397,1297,1197,1048,1000, 1100,
-   # 1202,1375,1298,1101,900,800])
   pload=np.array([945,845,745 ,780,998,1095,1147,1199,1300,1397,1449,1498,1397,1297,1197,1048,1000, 1100,
      1202,1375,1298,1101,900,800])
   p_g_min =np.array([200,200,150,120,70])
@@ -64,6 +61,7 @@ class optimization_variable:
     #分段线性化优化变量，由于model方法addGenConstrPWL的存在，无需手动进行SOS2分段线性化。
     self.p_g_2 = self.model.addMVar((self.k.n_gen, 24), vtype=GRB.CONTINUOUS, lb=0, name="P_G_2")
   #辅助优化变量：
+  
     self.gy = self.model.addMVar((1,24),vtype=GRB.CONTINUOUS)
     self.delter_g_s =self.model.addMVar((self.k.n_gen,23),vtype=GRB.BINARY)
     self.pgsum = self.model.addMVar((1,24),vtype=GRB.CONTINUOUS)
@@ -78,7 +76,7 @@ class optimization_variable:
       socmin = 0.2         # SOC下限
 
       # 创建SOC变量 (连续变量)
-      soc = model.addMVar(Horizon, lb=-GRB.INFINITY, ub=GRB.INFINITY, vtype=GRB.CONTINUOUS,name="soc")
+      soc= model.addMVar(Horizon, lb=-GRB.INFINITY, ub=GRB.INFINITY, vtype=GRB.CONTINUOUS,name="soc")
       for t in range(Horizon):
           # 下界约束
           model.addConstr(x_P_ch[0,t] >= x_u_ch[0,t] * EESmin,name=f"ch_power_lb_{t}")
@@ -127,9 +125,6 @@ class optimization_variable:
       total_net_energy = 0
       for t in range(Horizon):
           total_net_energy += x_P_ch[0,t] * yitac / capmax - x_P_dis[0,t] / yitad / capmax
-
-      # 加上自放电损失
-      # 这是一个简化的处理，实际可能需要更精确的模型
       model.addConstr(total_net_energy == 0, name="energy_balance")
       return soc
 
@@ -191,32 +186,34 @@ class optimization_variable:
           self.model.addConstr(self.p_g[n,t].item()-self.p_g[n,t-1].item()<=self.k.remp_u_d[n])
           self.model.addConstr(self.p_g[n,t].item()-self.p_g[n,t-1].item()>=-self.k.remp_u_d[n])
           #self.model.addConstr(self.p_g[n,t].item()-self.p_g[n,t-1].item()>=1)
-          '''
+          
           self.model.addConstr(self.delter_g_s[n,t-1] == self.g_s[n,t].item()-self.g_s[n,t-1].item())
           #启动停止保持约束
+          '''
           for k in range(self.k.t_on_and_off[n]):
             self.model.addConstr(self.delter_g_s[n,t-1] <= self.g_s[n,min(t+k,23)])
             self.model.addConstr(-self.delter_g_s[n,t-1] <=1- self.g_s[n,min(t+k,23)])
           '''
+          
     for n in range(self.k.n_gen):
       for t in range(1, self.k.horizon):
                   # 如果t-1是0，t是1（开机），那么t到min(t+T_on-1, horizon-1)必须为1
-        self.model.addConstr(
+        for k in range(self.k.t_on_and_off[n]):
+          self.model.addConstr(
           self.g_s[n,t] - self.g_s[n,t-1]
-          <= self.g_s[n, min(t+self.k.t_on_and_off[n]-1, self.k.horizon-1)]
-        )
-    for n in range(self.k.n_gen):
-      for t in range(1, self.k.horizon):
-        self.model.addConstr(
-          self.g_s[n,t-1] - self.g_s[n,t]
-          <=1- self.g_s[n, min(t+self.k.t_on_and_off[n]-1, self.k.horizon-1)]
+          <= self.g_s[n, min(t+k, self.k.horizon-1)]
           )
+          self.model.addConstr(
+          self.g_s[n,t-1] - self.g_s[n,t]
+          <=1- self.g_s[n, min(t+k, self.k.horizon-1)]
+          )
+
 
     self.model.addConstr(self.p_g<=self.g_s*np.repeat(self.k.p_g_max,24).reshape(-1,24))
     self.model.addConstr(self.p_g>=self.g_s*np.repeat(self.k.p_g_min,24).reshape(-1,24))
 
 
-    # 功率平衡约束
+    # 功率平衡约束，指的是不确定度线性化处理之后的功率
     p_w_b =((1-self.k.alpha)*self.k.w_w[0]/2+self.k.w_w[1]/2+self.k.w_w[2]*self.k.alpha/2)*self.k.pw_f
     p_v_b =((1-self.k.alpha)*self.k.w_v[0]/2+self.k.w_v[1]/2+self.k.w_v[2]*self.k.alpha/2)*self.k.pv_f
     p_l_b =((1-self.k.alpha)*self.k.w_l[0]/2+self.k.w_l[1]/2+self.k.w_l[2]*self.k.alpha/2)*self.k.pload
@@ -226,7 +223,7 @@ class optimization_variable:
     for t in range(24):
 
       gy_temp= gp.quicksum(self.g_s[n,t].item()*self.p_g[n,t].item() for n in range(5))
-      self.model.addConstr(self.gy[0,t] - gy_temp==0)#type:ignore
+      self.model.addConstr(self.gy[0,t] - gy_temp==0)
     print(f"清晰化pwb{p_w_b}")
     print(f"清晰化pvb{p_v_b}")
     print(f"清晰化plb{p_l_b}")

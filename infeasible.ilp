@@ -1,0 +1,13 @@
+\ Model _copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+\ Signature: 0x7874870f85771eb6
+Minimize
+  0 P_G_2[4,0]
+Subject To
+ R302: P_G[4,0] = 0
+Bounds
+ P_G[4,0] free
+General Constraints
+ GC96: P_G_2[4,0] = PWL ( P_G[4,0] ) : (70, 4900) (86, 7396) (102, 10404) 
+  (118, 13924) (134, 17956) (150, 22500)
+End
